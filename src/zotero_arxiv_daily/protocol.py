@@ -56,16 +56,18 @@ class Paper:
         tldr = response.choices[0].message.content
         return tldr
     
-    def generate_tldr(self, openai_client:OpenAI,llm_params:dict) -> str:
+    def generate_tldr(self, openai_client: OpenAI, llm_params: dict) -> str:
         try:
-            tldr = self._generate_tldr_with_llm(openai_client,llm_params)
+            tldr = self._generate_tldr_with_llm(openai_client, llm_params)
             self.tldr = tldr
             return tldr
         except Exception as e:
-            logger.warning(f"Failed to generate tldr of {self.url}: {e}")
+            logger.warning(f"Failed to generate tldr of {self.url}: {type(e).__name__}: {e}")
+            logger.warning(f"Falling back to abstract for {self.title}")
             tldr = self.abstract
             self.tldr = tldr
             return tldr
+
 
     def _generate_affiliations_with_llm(self, openai_client:OpenAI,llm_params:dict) -> Optional[list[str]]:
         if self.full_text is not None:
@@ -94,15 +96,21 @@ class Paper:
 
             return affiliations
     
-    def generate_affiliations(self, openai_client:OpenAI,llm_params:dict) -> Optional[list[str]]:
+    def generate_affiliations(self, openai_client: OpenAI, llm_params: dict) -> Optional[list[str]]:
         try:
-            affiliations = self._generate_affiliations_with_llm(openai_client,llm_params)
+            affiliations = self._generate_affiliations_with_llm(openai_client, llm_params)
+            if affiliations is not None:
+                logger.info(f"Extracted {len(affiliations)} affiliations for {self.title}")
+            else:
+                logger.warning(f"No affiliations found for {self.title}")
             self.affiliations = affiliations
             return affiliations
         except Exception as e:
-            logger.warning(f"Failed to generate affiliations of {self.url}: {e}")
+            logger.warning(f"Failed to extract affiliations of {self.url}: {type(e).__name__}: {e}")
             self.affiliations = None
             return None
+
+
 @dataclass
 class CorpusPaper:
     title: str
