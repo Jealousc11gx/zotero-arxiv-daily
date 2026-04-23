@@ -89,7 +89,23 @@ class Executor:
             logger.info(f"Selected {len(corpus)} zotero papers:\n{samples}\n...")
         return corpus
 
-    
+    def validate_api(self):
+        """Test API connectivity before processing papers."""
+        logger.info("Validating API connection...")
+        try:
+            response = self.openai_client.chat.completions.create(
+                messages=[{"role": "user", "content": "Hi"}],
+                model=self.config.llm.generation_kwargs.get('model', 'unknown'),
+                max_tokens=5,
+            )
+            logger.info(f"API validation successful. Response: {response.choices[0].message.content}")
+            return True
+        except Exception as e:
+            logger.error(f"API validation failed: {type(e).__name__}: {e}")
+            logger.error(f"base_url: {self.config.llm.api.base_url}")
+            logger.error(f"model: {self.config.llm.generation_kwargs.get('model', 'not set')}")
+            return False
+
     def run(self):
         corpus = self.fetch_zotero_corpus()
         corpus = self.filter_corpus(corpus)
@@ -111,6 +127,10 @@ class Executor:
             logger.info("Reranking papers...")
             reranked_papers = self.reranker.rerank(all_papers, corpus)
             reranked_papers = reranked_papers[:self.config.executor.max_paper_num]
+            logger.info("Validating API connection before generating TLDRs...")
+            if not self.validate_api():
+                logger.error("API validation failed. Aborting.")
+                return
             logger.info("Generating TLDR and affiliations...")
             for p in tqdm(reranked_papers):
                 p.generate_tldr(self.openai_client, self.config.llm)
