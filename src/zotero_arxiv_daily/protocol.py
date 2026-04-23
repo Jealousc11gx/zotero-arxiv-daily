@@ -22,7 +22,7 @@ class Paper:
     score: Optional[float] = None
 
     def _generate_tldr_with_llm(self, openai_client:OpenAI,llm_params:dict) -> str:
-        self.url = self.url.rstrip(':')
+        self.url = self.url.rstrip(':')  # Fix arXiv URL with trailing colon
         lang = llm_params.get('language', 'English')
         prompt = f"Given the following information of a paper, generate a one-sentence TLDR summary in {lang}:\n\n"
         if self.title:
@@ -44,6 +44,11 @@ class Paper:
         prompt_tokens = prompt_tokens[:4000]  # truncate to 4000 tokens
         prompt = enc.decode(prompt_tokens)
         
+        # Debug: log API configuration
+        logger.info(f"API base_url: {openai_client.base_url}")
+        logger.info(f"API model: {llm_params.get('generation_kwargs', {}).get('model', 'not set')}")
+        logger.info(f"TLDR language: {lang}")
+
         response = openai_client.chat.completions.create(
             messages=[
                 {
@@ -57,21 +62,19 @@ class Paper:
         tldr = response.choices[0].message.content
         return tldr
     
-    def generate_tldr(self, openai_client: OpenAI, llm_params: dict) -> str:
+    def generate_tldr(self, openai_client:OpenAI,llm_params:dict) -> str:
         try:
-            tldr = self._generate_tldr_with_llm(openai_client, llm_params)
+            tldr = self._generate_tldr_with_llm(openai_client,llm_params)
             self.tldr = tldr
             return tldr
         except Exception as e:
-            logger.warning(f"Failed to generate tldr of {self.url}: {type(e).__name__}: {e}")
-            logger.warning(f"Falling back to abstract for {self.title}")
+            logger.warning(f"Failed to generate tldr of {self.url}: {e}")
             tldr = self.abstract
             self.tldr = tldr
             return tldr
 
-
     def _generate_affiliations_with_llm(self, openai_client:OpenAI,llm_params:dict) -> Optional[list[str]]:
-        self.url = self.url.rstrip(':')
+        self.url = self.url.rstrip(':')  # Fix arXiv URL with trailing colon
         if self.full_text is not None:
             prompt = f"Given the beginning of a paper, extract the affiliations of the authors in a python list format, which is sorted by the author order. If there is no affiliation found, return an empty list '[]':\n\n{self.full_text}"
             # use gpt-4o tokenizer for estimation
@@ -98,21 +101,15 @@ class Paper:
 
             return affiliations
     
-    def generate_affiliations(self, openai_client: OpenAI, llm_params: dict) -> Optional[list[str]]:
+    def generate_affiliations(self, openai_client:OpenAI,llm_params:dict) -> Optional[list[str]]:
         try:
-            affiliations = self._generate_affiliations_with_llm(openai_client, llm_params)
-            if affiliations is not None:
-                logger.info(f"Extracted {len(affiliations)} affiliations for {self.title}")
-            else:
-                logger.warning(f"No affiliations found for {self.title}")
+            affiliations = self._generate_affiliations_with_llm(openai_client,llm_params)
             self.affiliations = affiliations
             return affiliations
         except Exception as e:
-            logger.warning(f"Failed to extract affiliations of {self.url}: {type(e).__name__}: {e}")
+            logger.warning(f"Failed to generate affiliations of {self.url}: {e}")
             self.affiliations = None
             return None
-
-
 @dataclass
 class CorpusPaper:
     title: str
