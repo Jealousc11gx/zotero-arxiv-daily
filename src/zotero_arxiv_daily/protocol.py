@@ -45,8 +45,10 @@ class Paper:
         prompt = enc.decode(prompt_tokens)
         
         # Debug: log API configuration
-        logger.info(f"API base_url: {openai_client.base_url}")
-        logger.info(f"API model: {llm_params.get('generation_kwargs', {}).get('model', 'not set')}")
+        base_url = getattr(openai_client, 'base_url', 'not available')
+        model = llm_params.get('generation_kwargs', {}).get('model', 'not set')
+        logger.info(f"API base_url: {base_url}")
+        logger.info(f"API model: {model}")
         logger.info(f"TLDR language: {lang}")
 
         response = openai_client.chat.completions.create(
